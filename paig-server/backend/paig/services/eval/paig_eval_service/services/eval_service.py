@@ -307,22 +307,35 @@ class EvaluationService:
         existing_evaluation = await self.evaluation_repository.get_evaluations_by_field('id', eval_id)
         return await self.evaluation_repository.delete_evaluation(existing_evaluation)
 
+    
     @staticmethod
     async def get_categories(purpose):
         resp = dict()
-        suggested_categories = get_suggested_plugins(purpose)
-        if not isinstance(suggested_categories, dict):
-            raise BadRequestException('Invalid response received for for suggested categories')
-        if suggested_categories['status'] != 'success':
-            raise BadRequestException(suggested_categories['message'])
-        resp['suggested_categories'] = suggested_categories['result']
+
+        # Step 1: Get all categories
         all_categories = get_all_plugins()
         if not isinstance(all_categories, dict):
-            raise BadRequestException('Invalid response received for for all categories')
+            raise BadRequestException('Invalid response received for all categories')
         if all_categories['status'] != 'success':
             raise BadRequestException(all_categories['message'])
         resp['all_categories'] = all_categories['result']
+
+        # Step 2: Check if remote eval plugins are disabled in config
+        if str(config.get("disable_remote_eval_plugins", "false")).lower() == "true":
+            # Disable suggestions
+            resp['suggested_categories'] = []
+        else:
+            # Use OpenAI or GPT to get suggested categories
+            suggested_categories = get_suggested_plugins(purpose)
+            if not isinstance(suggested_categories, dict):
+                raise BadRequestException('Invalid response received for suggested categories')
+            if suggested_categories['status'] != 'success':
+                raise BadRequestException(suggested_categories['message'])
+            resp['suggested_categories'] = suggested_categories['result']
+
         return resp
+
+
 
     async def rerun_evaluation_by_id(self, eval_id, owner, report_name):
         existing_evaluation = await self.evaluation_repository.get_evaluations_by_field('id', eval_id)

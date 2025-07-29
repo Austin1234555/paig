@@ -6,7 +6,6 @@ from threading import Lock, Thread
 
 from api.shield.utils import config_utils
 from opentelemetry import metrics
-from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.metrics import Observation
 
 # TODO - Add this in otel module
