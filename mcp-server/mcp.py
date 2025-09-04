@@ -1,6 +1,7 @@
 from typing import Any
 import httpx
 import yaml
+import re
 from mcp.server.fastmcp import FastMCP
 
 # ---------- Initialize FastMCP server ----------
@@ -61,16 +62,21 @@ async def make_paig_request(
             return {"error": str(e)}
 
 
-# ---------- MCP Tools for Applications ----------
+# ---------- MCP Tools for Applications (with natural language) ----------
+
 @mcp.tool()
-async def list_applications(page: int = 0, size: int = 10, status: str = None, name: str = None) -> str:
+async def list_applications(prompt: str = "", page: int = 0, size: int = 10, status: str = None, name: str = None) -> str:
     """
     List AI applications with optional filters.
-    Example queries:
+    Accepts natural language prompts like:
     - "List applications"
     - "Show all AI applications"
     - "Get applications with status=1"
     """
+    text = prompt.lower()
+    if prompt and "list applications" not in text and "show all ai applications" not in text:
+        return "❓ To list applications, type 'List applications'."
+
     params = {"page": page, "size": size}
     if status:
         params["status"] = status
@@ -90,41 +96,20 @@ async def list_applications(page: int = 0, size: int = 10, status: str = None, n
 
 
 @mcp.tool()
-async def create_application(app_data: dict) -> str:
+async def get_application_by_id(prompt: str = "", app_id: str = None) -> str:
     """
-    Create a new AI application.
-    Example queries:
-    - "Create application named FraudDetector"
-    - "Add new app Austin"
-    """
-    result = await make_paig_request("POST", "/governance-service/api/ai/application", data=app_data)
-    if "error" in result:
-        return f"❌ Failed to create application: {result['error']}"
-    return f'✅ Application "{app_data.get("name")}" created successfully.'
-
-
-@mcp.tool()
-async def update_application_guardrails(guardrail_data: dict) -> str:
-    """
-    Update application guardrails.
-    Example queries:
-    - "Update guardrails for application 42"
-    - "Change guardrail settings"
-    """
-    result = await make_paig_request("PUT", "/governance-service/api/ai/application/guardrails", data=guardrail_data)
-    if "error" in result:
-        return f"❌ Unable to update guardrails: {result['error']}"
-    return "✅ Application guardrails updated successfully."
-
-
-@mcp.tool()
-async def get_application_by_id(app_id: str) -> str:
-    """
-    Fetch an application by its ID.
-    Example queries:
+    Fetch an application by ID.
+    Accepts natural language prompts like:
     - "Get application 42"
     - "Show me details of app 101"
     """
+    if not app_id:
+        match = re.search(r'get application (\d+)', prompt.lower())
+        if match:
+            app_id = match.group(1)
+        else:
+            return "❓ Please provide an application ID or use 'Get application <ID>'."
+
     result = await make_paig_request("GET", f"/governance-service/api/ai/application/{app_id}")
     if "error" in result:
         return f"❌ Unable to fetch application {app_id}: {result['error']}"
@@ -134,13 +119,45 @@ async def get_application_by_id(app_id: str) -> str:
 
 
 @mcp.tool()
-async def update_application(app_id: str, app_data: dict) -> str:
+async def create_application(prompt: str = "", app_data: dict = None) -> str:
+    """
+    Create a new AI application.
+    Accepts natural language prompts like:
+    - "Create application named FraudDetector"
+    - "Add new app Austin"
+    """
+    if not app_data:
+        match = re.search(r'create application named "?([\w\s]+)"?', prompt.lower())
+        if match:
+            app_name = match.group(1)
+            app_data = {"name": app_name, "description": f"App {app_name} created via natural language"}
+        else:
+            return "❓ Please provide application data or type 'Create application named <AppName>'."
+
+    result = await make_paig_request("POST", "/governance-service/api/ai/application", data=app_data)
+    if "error" in result:
+        return f"❌ Failed to create application: {result['error']}"
+    return f'✅ Application "{app_data.get("name")}" created successfully.'
+
+
+@mcp.tool()
+async def update_application(prompt: str = "", app_id: str = None, app_data: dict = None) -> str:
     """
     Update an application by ID.
-    Example queries:
+    Accepts natural language prompts like:
     - "Update application 42"
     - "Modify app 101 with new description"
     """
+    if not app_id:
+        match = re.search(r'update application (\d+)', prompt.lower())
+        if match:
+            app_id = match.group(1)
+        else:
+            return "❓ Provide an ID to update or type 'Update application <ID>'."
+
+    if not app_data:
+        return f"ℹ️ Use this tool with app_data dictionary to update application {app_id}."
+
     result = await make_paig_request("PUT", f"/governance-service/api/ai/application/{app_id}", data=app_data)
     if "error" in result:
         return f"❌ Unable to update application {app_id}: {result['error']}"
@@ -148,17 +165,41 @@ async def update_application(app_id: str, app_data: dict) -> str:
 
 
 @mcp.tool()
-async def delete_application(app_id: str) -> str:
+async def delete_application(prompt: str = "", app_id: str = None) -> str:
     """
     Delete an application by ID.
-    Example queries:
+    Accepts natural language prompts like:
     - "Delete application 42"
     - "Remove app 101"
     """
+    if not app_id:
+        match = re.search(r'delete application (\d+)', prompt.lower())
+        if match:
+            app_id = match.group(1)
+        else:
+            return "❓ Provide an ID to delete or type 'Delete application <ID>'."
+
     result = await make_paig_request("DELETE", f"/governance-service/api/ai/application/{app_id}")
     if "error" in result:
         return f"❌ Unable to delete application {app_id}: {result['error']}"
     return f"🗑️ Application {app_id} deleted successfully."
+
+
+@mcp.tool()
+async def update_application_guardrails(prompt: str = "", guardrail_data: dict = None) -> str:
+    """
+    Update application guardrails.
+    Accepts natural language prompts like:
+    - "Update guardrails for application 42"
+    - "Change guardrail settings"
+    """
+    if not guardrail_data:
+        return "ℹ️ Use this tool with guardrail_data dictionary to update guardrails."
+
+    result = await make_paig_request("PUT", "/governance-service/api/ai/application/guardrails", data=guardrail_data)
+    if "error" in result:
+        return f"❌ Unable to update guardrails: {result['error']}"
+    return "✅ Application guardrails updated successfully."
 
 
 # ---------- Run MCP ----------
