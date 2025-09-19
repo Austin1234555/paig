@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import PlainTextResponse
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from api.guardrails.routers import paig_guardrails_router
 from api.user.routers import user_router
@@ -30,5 +32,12 @@ router.include_router(evaluation_router_paths, prefix="/eval-service", tags=["Ev
 router.include_router(paig_guardrails_router, prefix="/guardrail-service/api", dependencies=[Depends(get_auth_user)])
 router.include_router(api_key_router, prefix="/account-service/api/apikey", tags=["API Key"])
 router.include_router(ai_app_config_download_with_key_router, prefix="/api/ai/application/config", tags=["Governance with API Key"])
+
+
+@router.get("/metrics")
+async def metrics():
+    """ Prometheus metrics endpoint """
+    return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
 
 __all__ = ["router"]
