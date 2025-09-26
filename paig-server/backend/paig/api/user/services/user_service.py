@@ -11,6 +11,7 @@ from core.config import load_config_file
 import api.user.constants as users_constants
 from core.constants import DEFAULT_TENANT_ID
 from core.controllers.paginated_response import create_pageable_response
+from utils.custom_metrics import users_total_gauge 
 
 logger = logging.getLogger(__name__)
 config = load_config_file()
@@ -72,6 +73,9 @@ class UserService:
         if groups and len(groups) > 0:
             group_model = await self.group_repository.get_groups_by_in_list('name', groups)
         user = await self.user_repository.create_user(user_model_params, group_model)
+        all_users = await self.user_repository.get_all_users()
+        users_total_gauge.set(len(all_users))
+
         return user.to_ui_dict()
 
     async def get_user_tenants(self, user: dict):
@@ -126,6 +130,8 @@ class UserService:
             # Validate if users is part of app config, app policy or vector db policy
             await self.gov_service_validation_util.validate_entity_is_not_utilized(user_info.username, "User")
             await self.user_repository.delete_user(user_info)
+            all_users = await self.user_repository.get_all_users()
+            users_total_gauge.set(len(all_users))
             return user_info.to_ui_dict()
         raise UnauthorizedException("Unauthorized to perform this action")
 
