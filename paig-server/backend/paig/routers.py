@@ -16,6 +16,18 @@ from api.eval.routers import evaluation_router_paths
 from api.apikey.routers import api_key_router
 from core.security.authentication import get_auth_user
 from api.governance.routes.ai_app_config_download_router import ai_app_config_download_with_key_router
+from utils.custom_metrics import ai_apps_total_gauge
+from api.governance.services.ai_app_service import AIAppService
+from utils.custom_metrics import ai_app_policies_total_gauge
+from api.governance.services.ai_app_policy_service import AIAppPolicyService
+
+
+
+ai_app_service = AIAppService()
+ai_app_policy_service = AIAppPolicyService()
+
+
+
 
 router = APIRouter()
 
@@ -37,7 +49,24 @@ router.include_router(ai_app_config_download_with_key_router, prefix="/api/ai/ap
 @router.get("/metrics")
 async def metrics():
     """ Prometheus metrics endpoint """
-    return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+    try:
+        # get the latest AI application count and set the gauge
+        count = await ai_app_service.get_ai_application_count()
+        ai_apps_total_gauge.set(count)
+        try:
+            policy_count = await ai_app_policy_service.get_ai_application_policy_count()
+            ai_app_policies_total_gauge.set(policy_count)
+        except Exception:
+            # don't break the whole endpoint if policy counting fails
+            pass
+        
+      
+       
 
+        # return all metrics
+        return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+    except Exception as e:
+        # helpful error message for debugging
+        return PlainTextResponse(f"Metrics endpoint failed: {e}", status_code=500)
 
 __all__ = ["router"]
