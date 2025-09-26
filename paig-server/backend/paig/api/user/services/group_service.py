@@ -7,6 +7,7 @@ from api.user.database.db_operations.user_repository import UserRepository
 from core.exceptions import BadRequestException, NotFoundException
 from core.controllers.paginated_response import create_pageable_response
 from core.utils import SingletonDepends
+from utils.custom_metrics import groups_total_gauge
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,8 @@ class GroupService:
     async def create_group(self, new_group):
         try:
             updated_group = await self.group_repository.create_group(new_group)
+            all_groups = await self.group_repository.get_all_groups()
+            groups_total_gauge.set(len(all_groups))
             return updated_group.to_ui_dict()
         except IntegrityError:
             raise BadRequestException(f"Group with name {new_group['name']} already exists")
@@ -45,6 +48,8 @@ class GroupService:
         await self.gov_service_validation_util.validate_entity_is_not_utilized(group.name, "Group")
 
         await self.group_repository.delete_group(group)
+        all_groups = await self.group_repository.get_all_groups()
+        groups_total_gauge.set(len(all_groups))
         return group.to_ui_dict()
 
     async def update_group(self, group_id, group_params):
