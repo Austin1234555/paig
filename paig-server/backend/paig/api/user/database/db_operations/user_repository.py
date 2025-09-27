@@ -48,6 +48,28 @@ class UserRepository(BaseOperations[User]):
 
     async def get_all_users(self, **args):
         return await self.get_all(**args)
+    
+    async def count_all(self) -> int:
+        """
+        Count total users in the system.
+
+        Uses get_all() to fetch all records and handles tuple/list return shapes.
+        """
+        result = await self.get_all({})
+
+        if isinstance(result, tuple):
+            if len(result) >= 2 and isinstance(result[1], int):
+                return result[1]
+            records = result[0]
+            return len(records) if records else 0
+
+        if isinstance(result, list):
+            return len(result)
+
+        try:
+            return len(result)
+        except Exception:
+            return 0
 
     async def get_users_with_groups(self, search_filters, page, size, sort):
         results, count = await self.list_records(search_filters, page, size, sort, relation_load_options=[selectinload(self.model_class.groups)])
