@@ -50,3 +50,35 @@ class AIAppPolicyRepository(BaseOperations[AIApplicationPolicyModel]):
         query = query.filter(and_(*query_filters))
 
         return await self._all(query)
+    
+    async def count_all(self) -> int:
+        """
+        Count total AI application policies in the system.
+
+        This is defensive: different repository layers may return:
+         - (records, total_count)
+         - a list of records
+         - None
+        We handle all shapes and return an int.
+        """
+        result = await self.get_all({})  # ask repository for everything
+
+        if result is None:
+            return 0
+
+        # if repository returns a tuple like (records, total_count)
+        if isinstance(result, tuple):
+            if len(result) >= 2 and isinstance(result[1], int):
+                return result[1]
+            records = result[0]
+            return len(records) if records else 0
+
+        # if repository returns a list of records
+        if isinstance(result, list):
+            return len(result)
+
+        # fallback: try len(), otherwise return 0
+        try:
+            return len(result)
+        except Exception:
+            return 0
