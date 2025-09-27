@@ -20,11 +20,21 @@ from utils.custom_metrics import ai_apps_total_gauge
 from api.governance.services.ai_app_service import AIAppService
 from utils.custom_metrics import ai_app_policies_total_gauge
 from api.governance.services.ai_app_policy_service import AIAppPolicyService
+from utils.custom_metrics import users_total_gauge
+from api.user.services.user_service import UserService
+from utils.custom_metrics import groups_total_gauge
+from api.user.services.group_service import GroupService
+
+
 
 
 
 ai_app_service = AIAppService()
 ai_app_policy_service = AIAppPolicyService()
+user_service = UserService()
+group_service = GroupService()
+
+
 
 
 
@@ -58,6 +68,19 @@ async def metrics():
             ai_app_policies_total_gauge.set(policy_count)
         except Exception:
             # don't break the whole endpoint if policy counting fails
+            pass
+        #user count
+        try:
+            user_count = await user_service.get_user_count()
+            users_total_gauge.set(user_count)
+        except Exception:
+            pass
+        
+        #groups count
+        try:
+            group_count = await group_service.get_group_count()
+            groups_total_gauge.set(group_count)
+        except Exception:
             pass
         
       
