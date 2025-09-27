@@ -53,3 +53,29 @@ class AIAppRepository(BaseOperations[AIApplicationModel]):
             return await self.get_all({field: values}, apply_in_list_filter=True)
         except NoResultFound:
             return None
+    async def count_all(self) -> int:
+        """
+        Count total AI applications in the system.
+
+        Uses the repository's get_all() to avoid importing the session provider.
+        This is defensive: if get_all returns (records, total_count) or a list,
+        we handle both shapes.
+        """
+        result = await self.get_all({})  # ask repository for everything
+
+        # if repository returns a tuple like (records, total_count)
+        if isinstance(result, tuple):
+            if len(result) >= 2 and isinstance(result[1], int):
+                return result[1]
+            records = result[0]
+            return len(records) if records else 0
+
+        # if repository returns a list of records
+        if isinstance(result, list):
+            return len(result)
+
+        # fallback: try len(), otherwise return 0
+        try:
+            return len(result)
+        except Exception:
+            return 0
