@@ -21,6 +21,26 @@ class GroupRepository(BaseOperations[Groups]):
 
     async def get_all_groups(self):
         return await self.get_all()
+    async def count_all(self) -> int:
+        """
+        Count total groups in the system.
+        Mirrors UserRepository.count_all().
+        """
+        result = await self.get_all({})
+
+        if isinstance(result, tuple):
+            if len(result) >= 2 and isinstance(result[1], int):
+                return result[1]
+            records = result[0]
+            return len(records) if records else 0
+
+        if isinstance(result, list):
+            return len(result)
+
+        try:
+            return len(result)
+        except Exception:
+            return 0
 
     async def get_groups_with_members_count(self, search_filters, page_number, size, sort):
         subquery = (
