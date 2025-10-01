@@ -2,6 +2,8 @@ from typing import List
 from sqlalchemy import or_, and_
 from core.factory.database_initiator import BaseOperations
 from api.governance.database.db_models.ai_app_policy_model import AIApplicationPolicyModel
+from core.db_session import session
+from sqlalchemy import select, func
 
 
 class AIAppPolicyRepository(BaseOperations[AIApplicationPolicyModel]):
@@ -53,32 +55,8 @@ class AIAppPolicyRepository(BaseOperations[AIApplicationPolicyModel]):
     
     async def count_all(self) -> int:
         """
-        Count total AI application policies in the system.
-
-        This is defensive: different repository layers may return:
-         - (records, total_count)
-         - a list of records
-         - None
-        We handle all shapes and return an int.
+        Count total AI application policies efficiently using SQL COUNT().
         """
-        result = await self.get_all({})  # ask repository for everything
-
-        if result is None:
-            return 0
-
-        # if repository returns a tuple like (records, total_count)
-        if isinstance(result, tuple):
-            if len(result) >= 2 and isinstance(result[1], int):
-                return result[1]
-            records = result[0]
-            return len(records) if records else 0
-
-        # if repository returns a list of records
-        if isinstance(result, list):
-            return len(result)
-
-        # fallback: try len(), otherwise return 0
-        try:
-            return len(result)
-        except Exception:
-            return 0
+        query = select(func.count()).select_from(self.model_class)  # SELECT COUNT(*) FROM ai_app_policy_model
+        result = await session.execute(query)  # use global session
+        return result.scalar_one()  # return the count directly
