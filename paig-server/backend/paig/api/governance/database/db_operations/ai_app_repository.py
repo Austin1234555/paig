@@ -5,6 +5,8 @@ from core.exceptions import NotFoundException
 from core.exceptions.error_messages_parser import get_error_message, ERROR_RESOURCE_NOT_FOUND
 from core.factory.database_initiator import BaseOperations
 from api.governance.database.db_models.ai_app_model import AIApplicationModel
+from core.db_session import session
+from sqlalchemy import select, func
 
 
 class AIAppRepository(BaseOperations[AIApplicationModel]):
@@ -55,27 +57,8 @@ class AIAppRepository(BaseOperations[AIApplicationModel]):
             return None
     async def count_all(self) -> int:
         """
-        Count total AI applications in the system.
-
-        Uses the repository's get_all() to avoid importing the session provider.
-        This is defensive: if get_all returns (records, total_count) or a list,
-        we handle both shapes.
+        Count total AI applications efficiently using SQL COUNT().
         """
-        result = await self.get_all({})  # ask repository for everything
-
-        # if repository returns a tuple like (records, total_count)
-        if isinstance(result, tuple):
-            if len(result) >= 2 and isinstance(result[1], int):
-                return result[1]
-            records = result[0]
-            return len(records) if records else 0
-
-        # if repository returns a list of records
-        if isinstance(result, list):
-            return len(result)
-
-        # fallback: try len(), otherwise return 0
-        try:
-            return len(result)
-        except Exception:
-            return 0
+        query = select(func.count()).select_from(self.model_class)  # SELECT COUNT(*)
+        result = await session.execute(query)  # use imported global session
+        return result.scalar_one()  # returns the count directly
