@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.future import select
 from core.utils import current_utc_time
 from core.db_session import session
+from sqlalchemy import func, select
 
 class UserRepository(BaseOperations[User]):
 
@@ -51,25 +52,12 @@ class UserRepository(BaseOperations[User]):
     
     async def count_all(self) -> int:
         """
-        Count total users in the system.
-
-        Uses get_all() to fetch all records and handles tuple/list return shapes.
+        Count total users in the system using SQL COUNT(),
+        instead of fetching all rows.
         """
-        result = await self.get_all({})
-
-        if isinstance(result, tuple):
-            if len(result) >= 2 and isinstance(result[1], int):
-                return result[1]
-            records = result[0]
-            return len(records) if records else 0
-
-        if isinstance(result, list):
-            return len(result)
-
-        try:
-            return len(result)
-        except Exception:
-            return 0
+        query = select(func.count()).select_from(self.model_class)
+        result = await session.execute(query)
+        return result.scalar_one()
 
     async def get_users_with_groups(self, search_filters, page, size, sort):
         results, count = await self.list_records(search_filters, page, size, sort, relation_load_options=[selectinload(self.model_class.groups)])
