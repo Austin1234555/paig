@@ -16,28 +16,15 @@ from api.eval.routers import evaluation_router_paths
 from api.apikey.routers import api_key_router
 from core.security.authentication import get_auth_user
 from api.governance.routes.ai_app_config_download_router import ai_app_config_download_with_key_router
-from utils.custom_metrics import ai_apps_total_gauge
+from utils1.custom_metrics import ai_apps_total_gauge
 from api.governance.services.ai_app_service import AIAppService
-from utils.custom_metrics import ai_app_policies_total_gauge
+from utils1.custom_metrics import ai_app_policies_total_gauge
 from api.governance.services.ai_app_policy_service import AIAppPolicyService
-from utils.custom_metrics import users_total_gauge
+from utils1.custom_metrics import users_total_gauge
 from api.user.services.user_service import UserService
-from utils.custom_metrics import groups_total_gauge
+from utils1.custom_metrics import groups_total_gauge
 from api.user.services.group_service import GroupService
-
-
-
-
-
-ai_app_service = AIAppService()
-ai_app_policy_service = AIAppPolicyService()
-user_service = UserService()
-group_service = GroupService()
-
-
-
-
-
+from core.utils import SingletonDepends
 
 router = APIRouter()
 
@@ -55,41 +42,31 @@ router.include_router(paig_guardrails_router, prefix="/guardrail-service/api", d
 router.include_router(api_key_router, prefix="/account-service/api/apikey", tags=["API Key"])
 router.include_router(ai_app_config_download_with_key_router, prefix="/api/ai/application/config", tags=["Governance with API Key"])
 
-
 @router.get("/metrics")
-async def metrics():
+async def metrics(
+    ai_app_service: AIAppService = Depends(SingletonDepends(AIAppService, called_inside_fastapi_depends=True)),
+    ai_app_policy_service: AIAppPolicyService = Depends(SingletonDepends(AIAppPolicyService, called_inside_fastapi_depends=True)),
+    user_service: UserService = Depends(SingletonDepends(UserService, called_inside_fastapi_depends=True)),
+    group_service: GroupService = Depends(SingletonDepends(GroupService, called_inside_fastapi_depends=True)),
+):
     """ Prometheus metrics endpoint """
     try:
-        # get the latest AI application count and set the gauge
-        count = await ai_app_service.get_ai_application_count()
-        ai_apps_total_gauge.set(count)
-        try:
-            policy_count = await ai_app_policy_service.get_ai_application_policy_count()
-            ai_app_policies_total_gauge.set(policy_count)
-        except Exception:
-            # don't break the whole endpoint if policy counting fails
-            pass
-        #user count
+        # user count
         try:
             user_count = await user_service.get_user_count()
             users_total_gauge.set(user_count)
         except Exception:
             pass
-        
-        #groups count
+        # groups count
         try:
             group_count = await group_service.get_group_count()
             groups_total_gauge.set(group_count)
         except Exception:
             pass
-        
-      
-       
 
         # return all metrics
         return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
     except Exception as e:
         # helpful error message for debugging
         return PlainTextResponse(f"Metrics endpoint failed: {e}", status_code=500)
-
 __all__ = ["router"]
