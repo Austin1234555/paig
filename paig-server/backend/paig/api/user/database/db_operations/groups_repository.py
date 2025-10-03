@@ -6,6 +6,7 @@ from sqlalchemy import func, delete, and_
 from sqlalchemy.future import select
 from core.utils import current_utc_time
 from core.db_session import session
+from sqlalchemy import func, select
 
 
 class GroupRepository(BaseOperations[Groups]):
@@ -23,24 +24,12 @@ class GroupRepository(BaseOperations[Groups]):
         return await self.get_all()
     async def count_all(self) -> int:
         """
-        Count total groups in the system.
-        Mirrors UserRepository.count_all().
+        Count total groups in the system using SQL COUNT(),
+        instead of fetching all rows.
         """
-        result = await self.get_all({})
-
-        if isinstance(result, tuple):
-            if len(result) >= 2 and isinstance(result[1], int):
-                return result[1]
-            records = result[0]
-            return len(records) if records else 0
-
-        if isinstance(result, list):
-            return len(result)
-
-        try:
-            return len(result)
-        except Exception:
-            return 0
+        query = select(func.count()).select_from(self.model_class)
+        result = await session.execute(query)
+        return result.scalar_one()
 
     async def get_groups_with_members_count(self, search_filters, page_number, size, sort):
         subquery = (
