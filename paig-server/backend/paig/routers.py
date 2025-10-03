@@ -16,10 +16,6 @@ from api.eval.routers import evaluation_router_paths
 from api.apikey.routers import api_key_router
 from core.security.authentication import get_auth_user
 from api.governance.routes.ai_app_config_download_router import ai_app_config_download_with_key_router
-from utils1.custom_metrics import ai_apps_total_gauge
-from api.governance.services.ai_app_service import AIAppService
-from utils1.custom_metrics import ai_app_policies_total_gauge
-from api.governance.services.ai_app_policy_service import AIAppPolicyService
 from utils1.custom_metrics import users_total_gauge
 from api.user.services.user_service import UserService
 from utils1.custom_metrics import groups_total_gauge
@@ -44,8 +40,6 @@ router.include_router(ai_app_config_download_with_key_router, prefix="/api/ai/ap
 
 @router.get("/metrics")
 async def metrics(
-    ai_app_service: AIAppService = Depends(SingletonDepends(AIAppService, called_inside_fastapi_depends=True)),
-    ai_app_policy_service: AIAppPolicyService = Depends(SingletonDepends(AIAppPolicyService, called_inside_fastapi_depends=True)),
     user_service: UserService = Depends(SingletonDepends(UserService, called_inside_fastapi_depends=True)),
     group_service: GroupService = Depends(SingletonDepends(GroupService, called_inside_fastapi_depends=True)),
 ):
